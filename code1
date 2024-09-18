@@ -1,0 +1,116 @@
+import java.util.*;
+
+public class ShamirSecretSharing {
+
+    
+    public static int decodeValue(int base, String value) {
+        return Integer.parseInt(value, base);
+    }
+
+    
+    public static double lagrangeInterpolation(List<int[]> points) {
+        int n = points.size();
+        double constantTerm = 0.0;
+
+        for (int i = 0; i < n; i++) {
+            int xi = points.get(i)[0];
+            int yi = points.get(i)[1];
+            double term = yi;
+
+            for (int j = 0; j < n; j++) {
+                if (i != j) {
+                    int xj = points.get(j)[0];
+                }
+            }
+            constantTerm += term;
+        }
+
+        return constantTerm;
+    }
+
+   
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        
+        
+        System.out.print("Enter the number of roots (n): ");
+        int n = scanner.nextInt();
+        
+        System.out.print("Enter the minimum number of roots required (k): ");
+        int k = scanner.nextInt();
+        
+        // Clear the scanner buffer
+        scanner.nextLine(); 
+
+        // Input JSON from the user
+        System.out.println("Enter the JSON input (end with an empty line):");
+        StringBuilder jsonInput = new StringBuilder();
+        String line;
+        
+        while (scanner.hasNextLine()) {
+            line = scanner.nextLine();
+            if (line.trim().isEmpty()) {
+                break; // End of JSON input
+            }
+            jsonInput.append(line).append("\n");
+        }
+
+        Map<String, String> jsonMap = new LinkedHashMap<>();
+        String[] lines = jsonInput.toString().trim().split("\\n");
+        for (String l : lines) {
+            if (l.trim().isEmpty()) continue;
+            String[] keyValue = l.split(":");
+            if (keyValue.length == 2) {
+                jsonMap.put(keyValue[0].trim().replaceAll("[\"{},]", ""), keyValue[1].trim().replaceAll("[\"{},]", ""));
+            }
+        }
+
+        try {
+            String nValue = jsonMap.get("n");
+            String kValue = jsonMap.get("k");
+            if (nValue == null || kValue == null) {
+                System.out.println("Error: Missing 'keys' in JSON input.");
+                return;
+            }
+            
+            int providedN = Integer.parseInt(nValue);
+            int requiredK = Integer.parseInt(kValue);
+
+            if (providedN != n) {
+                System.out.println("Error: The number of roots provided does not match the input.");
+                return;
+            }
+
+            List<int[]> points = new ArrayList<>();
+            for (Map.Entry<String, String> entry : jsonMap.entrySet()) {
+                String key = entry.getKey();
+                if (!key.equals("n") && !key.equals("k")) {
+                    String[] parts = entry.getValue().split(",");
+                    if (parts.length == 2) {
+                        int base = Integer.parseInt(parts[0].split(":")[1].trim());
+                        String value = parts[1].split(":")[1].trim();
+                        int x = Integer.parseInt(key);
+                        int y = decodeValue(base, value);
+                        points.add(new int[]{x, y});
+                    }
+                }
+            }
+
+            if (points.size() < requiredK) {
+                System.out.println("Error: Not enough points to perform interpolation.");
+                return;
+            }
+
+            List<int[]> interpolationPoints = points.subList(0, requiredK);
+
+            double constantC = lagrangeInterpolation(interpolationPoints);
+
+            System.out.println("The constant term 'c' is: " + constantC);
+
+        } catch (Exception e) {
+            System.out.println("Error: " + e.getMessage());
+        } finally {
+            scanner.close();
+        }
+    }
+}
