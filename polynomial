@@ -1,0 +1,101 @@
+import java.util.*;
+import java.util.regex.*;
+
+public class ShamirSecretSharing {
+
+  
+    public static int decodeValue(int base, String value) {
+        return Integer.parseInt(value, base);
+    }
+
+    
+    public static double lagrangeInterpolation(List<int[]> points) {
+        int n = points.size();
+        double constantTerm = 0.0;
+
+        for (int i = 0; i < n; i++) {
+            int xi = points.get(i)[0];
+            int yi = points.get(i)[1];
+            double term = yi;
+
+            for (int j = 0; j < n; j++) {
+                if (i != j) {
+                    int xj = points.get(j)[0];
+                    term *= (0.0 - xj) / (xi - xj);  // We are looking for f(0), so x = 0
+                }
+            }
+            constantTerm += term;
+        }
+
+        return constantTerm;
+    }
+
+    
+    public static Map<String, String> parseJson(String json) {
+        Map<String, String> map = new HashMap<>();
+        Pattern pattern = Pattern.compile("\"(\\d+)\":\\s*\\{\\s*\"base\":\\s*\"(\\d+)\",\\s*\"value\":\\s*\"(\\w+)\"\\s*\\}");
+        Matcher matcher = pattern.matcher(json);
+        
+        while (matcher.find()) {
+            String key = matcher.group(1);
+            String base = matcher.group(2);
+            String value = matcher.group(3);
+            map.put(key, base + "," + value);
+        }
+        
+        return map;
+    }
+
+   
+    public static void main(String[] args) {
+        
+        String jsonInput = "{\n" +
+                "    \"keys\": {\n" +
+                "        \"n\": 4,\n" +
+                "        \"k\": 3\n" +
+                "    },\n" +
+                "    \"1\": {\n" +
+                "        \"base\": \"10\",\n" +
+                "        \"value\": \"4\"\n" +
+                "    },\n" +
+                "    \"2\": {\n" +
+                "        \"base\": \"2\",\n" +
+                "        \"value\": \"111\"\n" +
+                "    },\n" +
+                "    \"3\": {\n" +
+                "        \"base\": \"10\",\n" +
+                "        \"value\": \"12\"\n" +
+                "    },\n" +
+                "    \"6\": {\n" +
+                "        \"base\": \"4\",\n" +
+                "        \"value\": \"213\"\n" +
+                "    }\n" +
+                "}";
+
+        
+        Map<String, String> jsonMap = parseJson(jsonInput);
+
+        
+        int n = 4; // Number of provided points
+        int k = 3; // Minimum number of points required to solve the polynomial
+
+        
+        List<int[]> points = new ArrayList<>();
+        for (Map.Entry<String, String> entry : jsonMap.entrySet()) {
+            int x = Integer.parseInt(entry.getKey());  // x is the key itself
+            String[] values = entry.getValue().split(",");
+            int base = Integer.parseInt(values[0]);
+            String value = values[1];
+            int y = decodeValue(base, value);  // Decode y value
+            points.add(new int[]{x, y});
+        }
+
+        
+        List<int[]> interpolationPoints = points.subList(0, k);
+
+        
+        double constantC = lagrangeInterpolation(interpolationPoints);
+
+        System.out.println(constantC);
+    }
+}
