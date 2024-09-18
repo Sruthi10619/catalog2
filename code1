@@ -1,25 +1,28 @@
+import java.text.DecimalFormat;
 import java.util.*;
+import java.util.regex.*;
 
 public class ShamirSecretSharing {
 
-    
-    public static int decodeValue(int base, String value) {
-        return Integer.parseInt(value, base);
+    // Decode value from a given base
+    public static long decodeValue(int base, String value) {
+        return Long.parseLong(value, base);
     }
 
-    
-    public static double lagrangeInterpolation(List<int[]> points) {
+    // Perform Lagrange interpolation to find the constant term of the polynomial
+    public static double lagrangeInterpolation(List<long[]> points) {
         int n = points.size();
         double constantTerm = 0.0;
 
         for (int i = 0; i < n; i++) {
-            int xi = points.get(i)[0];
-            int yi = points.get(i)[1];
+            long xi = points.get(i)[0];
+            long yi = points.get(i)[1];
             double term = yi;
 
             for (int j = 0; j < n; j++) {
                 if (i != j) {
-                    int xj = points.get(j)[0];
+                    long xj = points.get(j)[0];
+                    term *= (0.0 - xj) / (xi - xj);  // We are looking for f(0), so x = 0
                 }
             }
             constantTerm += term;
@@ -28,89 +31,96 @@ public class ShamirSecretSharing {
         return constantTerm;
     }
 
-   
+    // Parse JSON input and extract key-value pairs
+    public static Map<String, String> parseJson(String json) {
+        Map<String, String> map = new HashMap<>();
+        Pattern pattern = Pattern.compile("\"(\\d+)\":\\s*\\{\\s*\"base\":\\s*\"(\\d+)\",\\s*\"value\":\\s*\"(\\w+)\"\\s*\\}");
+        Matcher matcher = pattern.matcher(json);
+
+        while (matcher.find()) {
+            String key = matcher.group(1);
+            String base = matcher.group(2);
+            String value = matcher.group(3);
+            map.put(key, base + "," + value);
+        }
+
+        return map;
+    }
+
     public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
-        
-        
-        System.out.print("Enter the number of roots (n): ");
-        int n = scanner.nextInt();
-        
-        System.out.print("Enter the minimum number of roots required (k): ");
-        int k = scanner.nextInt();
-        
-        // Clear the scanner buffer
-        scanner.nextLine(); 
+        String jsonInput = "{\n" +
+                "    \"keys\": {\n" +
+                "        \"n\": 9,\n" +
+                "        \"k\": 6\n" +
+                "    },\n" +
+                "    \"1\": {\n" +
+                "        \"base\": \"10\",\n" +
+                "        \"value\": \"28735619723837\"\n" +
+                "    },\n" +
+                "    \"2\": {\n" +
+                "        \"base\": \"16\",\n" +
+                "        \"value\": \"1A228867F0CA\"\n" +
+                "    },\n" +
+                "    \"3\": {\n" +
+                "        \"base\": \"12\",\n" +
+                "        \"value\": \"32811A4AA0B7B\"\n" +
+                "    },\n" +
+                "    \"4\": {\n" +
+                "        \"base\": \"11\",\n" +
+                "        \"value\": \"917978721331A\"\n" +
+                "    },\n" +
+                "    \"5\": {\n" +
+                "        \"base\": \"16\",\n" +
+                "        \"value\": \"1A22886782E1\"\n" +
+                "    },\n" +
+                "    \"6\": {\n" +
+                "        \"base\": \"10\",\n" +
+                "        \"value\": \"28735619654702\"\n" +
+                "    },\n" +
+                "    \"7\": {\n" +
+                "        \"base\": \"14\",\n" +
+                "        \"value\": \"71AB5070CC4B\"\n" +
+                "    },\n" +
+                "    \"8\": {\n" +
+                "        \"base\": \"9\",\n" +
+                "        \"value\": \"122662581541670\"\n" +
+                "    },\n" +
+                "    \"9\": {\n" +
+                "        \"base\": \"8\",\n" +
+                "        \"value\": \"642121030037605\"\n" +
+                "    }\n" +
+                "}";
 
-        // Input JSON from the user
-        System.out.println("Enter the JSON input (end with an empty line):");
-        StringBuilder jsonInput = new StringBuilder();
-        String line;
-        
-        while (scanner.hasNextLine()) {
-            line = scanner.nextLine();
-            if (line.trim().isEmpty()) {
-                break; // End of JSON input
+        // Parse JSON input to extract key-value pairs
+        Map<String, String> jsonMap = parseJson(jsonInput);
+
+        int n = 9; // Number of provided points
+        int k = 6; // Minimum number of points required to solve the polynomial
+
+        // Collect points from the parsed data
+        List<long[]> points = new ArrayList<>();
+        for (Map.Entry<String, String> entry : jsonMap.entrySet()) {
+            if (!entry.getKey().equals("keys")) {
+                long x = Long.parseLong(entry.getKey());  // x is the key itself
+                String[] values = entry.getValue().split(",");
+                int base = Integer.parseInt(values[0]);
+                String value = values[1];
+                long y = decodeValue(base, value);  // Decode y value
+                points.add(new long[]{x, y});
             }
-            jsonInput.append(line).append("\n");
         }
 
-        Map<String, String> jsonMap = new LinkedHashMap<>();
-        String[] lines = jsonInput.toString().trim().split("\\n");
-        for (String l : lines) {
-            if (l.trim().isEmpty()) continue;
-            String[] keyValue = l.split(":");
-            if (keyValue.length == 2) {
-                jsonMap.put(keyValue[0].trim().replaceAll("[\"{},]", ""), keyValue[1].trim().replaceAll("[\"{},]", ""));
-            }
-        }
+        // Use a subset of points for interpolation
+        List<long[]> interpolationPoints = points.subList(0, k);
 
-        try {
-            String nValue = jsonMap.get("n");
-            String kValue = jsonMap.get("k");
-            if (nValue == null || kValue == null) {
-                System.out.println("Error: Missing 'keys' in JSON input.");
-                return;
-            }
-            
-            int providedN = Integer.parseInt(nValue);
-            int requiredK = Integer.parseInt(kValue);
+        // Perform Lagrange interpolation to find the constant term
+        double constantC = lagrangeInterpolation(interpolationPoints);
 
-            if (providedN != n) {
-                System.out.println("Error: The number of roots provided does not match the input.");
-                return;
-            }
+        // Format and print the result
+        DecimalFormat df = new DecimalFormat("#");
+        df.setMaximumFractionDigits(340); // Set this to a high number to ensure no scientific notation
+        String formattedConstantC = df.format(constantC);
 
-            List<int[]> points = new ArrayList<>();
-            for (Map.Entry<String, String> entry : jsonMap.entrySet()) {
-                String key = entry.getKey();
-                if (!key.equals("n") && !key.equals("k")) {
-                    String[] parts = entry.getValue().split(",");
-                    if (parts.length == 2) {
-                        int base = Integer.parseInt(parts[0].split(":")[1].trim());
-                        String value = parts[1].split(":")[1].trim();
-                        int x = Integer.parseInt(key);
-                        int y = decodeValue(base, value);
-                        points.add(new int[]{x, y});
-                    }
-                }
-            }
-
-            if (points.size() < requiredK) {
-                System.out.println("Error: Not enough points to perform interpolation.");
-                return;
-            }
-
-            List<int[]> interpolationPoints = points.subList(0, requiredK);
-
-            double constantC = lagrangeInterpolation(interpolationPoints);
-
-            System.out.println("The constant term 'c' is: " + constantC);
-
-        } catch (Exception e) {
-            System.out.println("Error: " + e.getMessage());
-        } finally {
-            scanner.close();
-        }
+        System.out.println(formattedConstantC);
     }
 }
